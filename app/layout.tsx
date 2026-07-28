@@ -20,7 +20,7 @@ const editorial = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://decantsleo.com"),
+  metadataBase: new URL("https://decantsleo.karmaops.online"),
   title: {
     default: "Decants Leo — Relojes y accesorios",
     template: "%s · Decants Leo",
