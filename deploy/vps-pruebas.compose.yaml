@@ -1,34 +1,46 @@
 # Ambiente de PRUEBAS de Decants Leo en el VPS privado (Hostinger, Docker Manager).
 # No es producción: producción sigue en Coolify desde `main`.
 #
-# Construye la rama `rediseno-armador` directo desde GitHub y la sirve en el
-# puerto 3020 del VPS (http://<ip-del-vps>:3020). No toca otros proyectos.
+# El Docker Manager de Hostinger no construye imágenes, solo las descarga.
+# Por eso usa la imagen oficial node:22 y, al arrancar, baja la rama
+# `rediseno-armador`, instala y compila. Para actualizar: Restart del proyecto
+# (vuelve a bajar la rama). Sirve en el puerto 3020 del VPS.
 #
-# La vista realista necesita las credenciales de console.higgsfield.ai como
-# variables del proyecto (en hPanel → VPS → Docker Manager → Environment):
+# La vista realista necesita la credencial de console.higgsfield.ai como
+# variable del proyecto (hPanel → VPS → Docker Manager → Environment):
 #   HF_CREDENTIALS=key-id:key-secret
-# Sin ellas el sitio funciona igual y el botón avisa que no está conectado.
+# Sin ella el sitio funciona igual y el botón avisa que no está conectado.
 
 services:
   web:
-    build:
-      context: https://github.com/Ramonrojo10/decants-leo.git#rediseno-armador
-    image: decants-leo-pruebas:latest
+    image: node:22-alpine
     restart: unless-stopped
+    working_dir: /srv
+    command:
+      - sh
+      - -c
+      - >-
+        apk add --no-cache git curl >/dev/null &&
+        rm -rf app && git clone --depth 1 --branch rediseno-armador
+        https://github.com/Ramonrojo10/decants-leo.git app &&
+        cd app && npm ci --no-audit --no-fund && npm run build &&
+        exec npx vinext start --host 0.0.0.0 --port 3000
     ports:
       - "3020:3000"
     environment:
+      # sin NODE_ENV=production: npm ci necesita las devDependencies para compilar
       HF_CREDENTIALS: ${HF_CREDENTIALS:-}
       HIGGSFIELD_MODEL: ${HIGGSFIELD_MODEL:-alibaba/qwen-image-3/edit}
-      RENDERS_DIR: /app/data/renders
+      RENDERS_DIR: /srv/renders
     volumes:
       # vistas realistas ya pagadas: sobreviven actualizaciones y reinicios
-      - renders:/app/data/renders
+      - renders:/srv/renders
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:3000/"]
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 600s
 
 volumes:
   renders:
