@@ -40,3 +40,8 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+/node_modules.nosync
+*.tsbuildinfo
+
+# vistas realistas generadas (se guardan en el servidor)
+/data/

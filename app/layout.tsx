@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Geist, Geist_Mono } from "next/font/google";
+import { Bodoni_Moda, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 const geist = Geist({
@@ -12,10 +12,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const editorial = Cormorant_Garamond({
+const editorial = Bodoni_Moda({
   variable: "--font-editorial",
   subsets: ["latin"],
-  weight: ["500", "600"],
+  weight: ["400", "500"],
   style: ["normal", "italic"],
 });
 

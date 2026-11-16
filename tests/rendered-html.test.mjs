@@ -39,23 +39,33 @@ test("renders the Decants Leo storefront and production metadata", async () => {
 });
 
 test("keeps licensed audio, catalog assets, and disclosure copy in source", async () => {
-  const [page, layout, license] = await Promise.all([
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+  const sources = [
+    "../app/page.tsx",
+    "../app/components/header.tsx",
+    "../app/components/store.tsx",
+    "../app/lib/site.ts",
+  ];
+  const [layout, license, ...files] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../public/audio/LICENSE.txt", import.meta.url), "utf8"),
+    ...sources.map((path) => readFile(new URL(path, import.meta.url), "utf8")),
   ]);
+  const [page, header] = files;
+  const source = files.join("\n");
 
-  assert.match(page, /deep-techno-ambience\.mp3/);
-  assert.match(page, /activación|permiso|con tu permiso/i);
+  assert.match(header, /deep-techno-ambience\.mp3/);
+  // Music never autoplays: it only starts from the header toggle.
+  assert.match(header, /preload="none"/);
+  assert.doesNotMatch(header, /autoPlay/);
   assert.match(page, /piezas personalizadas independientes/i);
-  assert.match(page, /disponibilidad, especificaciones y precio/i);
-  assert.match(page, /wa\.me/);
+  assert.match(source, /disponibilidad, especificaciones y precio/i);
+  assert.match(source, /wa\.me/);
   assert.match(layout, /locale:\s*"es_MX"/);
   assert.match(license, /Mixkit Stock Music Free License/);
 
   await Promise.all([
     access(new URL("../public/og.png", import.meta.url)),
-    access(new URL("../public/products/santos-dumont-seiko-mod.png", import.meta.url)),
-    access(new URL("../public/brand/instagram-profile.png", import.meta.url)),
+    access(new URL("../public/products/santos-dumont-seiko-mod.jpg", import.meta.url)),
+    access(new URL("../public/brand/instagram-profile.jpg", import.meta.url)),
   ]);
 });

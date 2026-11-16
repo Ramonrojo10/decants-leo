@@ -1,0 +1,34 @@
+# Ambiente de PRUEBAS de Decants Leo en el VPS privado (Hostinger, Docker Manager).
+# No es producción: producción sigue en Coolify desde `main`.
+#
+# Construye la rama `rediseno-armador` directo desde GitHub y la sirve en el
+# puerto 3020 del VPS (http://<ip-del-vps>:3020). No toca otros proyectos.
+#
+# La vista realista necesita las credenciales de console.higgsfield.ai como
+# variables del proyecto (en hPanel → VPS → Docker Manager → Environment):
+#   HF_CREDENTIALS=key-id:key-secret
+# Sin ellas el sitio funciona igual y el botón avisa que no está conectado.
+
+services:
+  web:
+    build:
+      context: https://github.com/Ramonrojo10/decants-leo.git#rediseno-armador
+    image: decants-leo-pruebas:latest
+    restart: unless-stopped
+    ports:
+      - "3020:3000"
+    environment:
+      HF_CREDENTIALS: ${HF_CREDENTIALS:-}
+      HIGGSFIELD_MODEL: ${HIGGSFIELD_MODEL:-alibaba/qwen-image-3/edit}
+      RENDERS_DIR: /app/data/renders
+    volumes:
+      # vistas realistas ya pagadas: sobreviven actualizaciones y reinicios
+      - renders:/app/data/renders
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  renders:
