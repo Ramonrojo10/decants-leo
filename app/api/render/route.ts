@@ -2,7 +2,7 @@
  * Vista realista del armador ("Ver mi reloj realista").
  *
  * Recibe las piezas reales ya armadas (imagen 1000x1000) y pide a Higgsfield
- * una foto realista del mismo reloj puesto en la muñeca de alguien.
+ * una foto de estudio realista del mismo reloj con su correa abrochada.
  *
  *   POST /api/render
  *   { "build": "dive-steel.dj-navy.fpj-steel.pepsi.curved-black",
@@ -30,10 +30,10 @@ const API = "https://api.higgsfield.ai";
 const MAX_WAIT_MS = 90_000;
 
 export const RENDER_PROMPT =
-  "Photorealistic lifestyle photograph of the exact watch shown in the reference image being worn on a man's left wrist, as if he is trying it on: strap buckled around the wrist, forearm resting naturally, the other hand lightly adjusting the case or strap, slightly angled view so the case side and crown are visible and the dial is clearly readable and in sharp focus. Keep every part identical to the reference: the case shape and finish, the bezel insert with its numerals and colors, the dial with the same logo, text, markers and date window, the hands at the same positions, and the same strap material, color and texture. Add only real photographic qualities: a sapphire crystal with a soft reflection, depth between dial and bezel, metal texture catching the light. Warm natural light, softly blurred dark background, shallow depth of field. Only the wrist, forearm and hands are visible, no face, no other watches or jewelry, do not add or change any text or parts.";
+  "Ultra-realistic commercial studio photograph of the exact watch shown in the reference image, shot with a full-frame camera and a 100mm macro lens at f/8, as for a luxury watch catalog. The watch stands upright with its strap buckled closed in a loop, slightly angled three-quarter view so the case side and crown are visible, dial sharp and readable. Keep every part identical to the reference: the case shape, the bezel insert with its numerals and colors, the dial with the same logo, text, markers and date window, the hands at the same positions, and the same strap material, color and texture. Make it indistinguishable from a real photograph: crisp brushed finishes on the case top and mirror-polished bevels with real reflections of softboxes, sapphire crystal with a faint blue anti-reflective tint and a subtle highlight, visible depth and parallax between crystal, bezel, dial and hands, tiny contact shadows of the hands and markers on the dial, lume plots with a slightly textured surface, fine grain of the strap material, true-to-life metal color, natural micro-contrast. Dark graphite seamless background with a soft gradient, large soft key light from the upper left, thin rim light along the case edge, gentle reflection on a dark glossy surface below. No person, no wrist, no text added, do not change or add any parts.";
 
 /** Cambia cuando cambie el estilo de la foto: las vistas guardadas de otro estilo no se reutilizan. */
-const RENDER_STYLE = "wrist";
+const RENDER_STYLE = "studio";
 
 const pending = new Map<string, Promise<string>>();
 const BUILD_RE = /^[a-z0-9-]+(\.[a-z0-9-]+){0,9}$/;
