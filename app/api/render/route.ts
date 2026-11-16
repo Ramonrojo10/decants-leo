@@ -2,7 +2,7 @@
  * Vista realista del armador ("Ver mi reloj realista").
  *
  * Recibe las piezas reales ya armadas (imagen 1000x1000) y pide a Higgsfield
- * una foto realista del mismo reloj con su correa abrochada.
+ * una foto realista del mismo reloj puesto en la muñeca de alguien.
  *
  *   POST /api/render
  *   { "build": "dive-steel.dj-navy.fpj-steel.pepsi.curved-black",
@@ -21,7 +21,7 @@
  * /files/generate-upload-url, mandar la generación con su URL pública en
  * `image_urls`, y consultar /requests/{id}/status hasta "completed".
  * Cada armado se genera UNA sola vez: la foto se descarga y se guarda en disco
- * (RENDERS_DIR, por defecto ./data/renders/<build>.png) y se sirve desde
+ * (RENDERS_DIR, por defecto ./data/renders/<build>.<estilo>.png) y se sirve desde
  * GET /api/render?build=<build>. Sobrevive reinicios y no depende de que
  * Higgsfield conserve su enlace. En Docker, RENDERS_DIR debe ser un volumen.
  */
@@ -30,7 +30,10 @@ const API = "https://api.higgsfield.ai";
 const MAX_WAIT_MS = 90_000;
 
 export const RENDER_PROMPT =
-  "Photorealistic studio product photograph of the exact watch shown in the reference image, with its strap buckled closed in a loop as if worn, standing upright, slightly angled three-quarter view so the case side and crown are visible, dial still clearly readable. Keep every part identical to the reference: the case shape and finish, the bezel insert with its numerals and colors, the dial with the same logo, text, markers and date window, the hands at the same positions, and the same strap material, color, texture and buckle. Add only real photographic qualities: a sapphire crystal with a soft reflection, depth between dial and bezel, contact shadows of the hands on the dial, metal texture catching the light. Dark seamless studio background, soft key light from the upper left, shallow depth of field. No person, no wrist, do not add or change any text or parts.";
+  "Photorealistic lifestyle photograph of the exact watch shown in the reference image being worn on a man's left wrist, as if he is trying it on: strap buckled around the wrist, forearm resting naturally, the other hand lightly adjusting the case or strap, slightly angled view so the case side and crown are visible and the dial is clearly readable and in sharp focus. Keep every part identical to the reference: the case shape and finish, the bezel insert with its numerals and colors, the dial with the same logo, text, markers and date window, the hands at the same positions, and the same strap material, color and texture. Add only real photographic qualities: a sapphire crystal with a soft reflection, depth between dial and bezel, metal texture catching the light. Warm natural light, softly blurred dark background, shallow depth of field. Only the wrist, forearm and hands are visible, no face, no other watches or jewelry, do not add or change any text or parts.";
+
+/** Cambia cuando cambie el estilo de la foto: las vistas guardadas de otro estilo no se reutilizan. */
+const RENDER_STYLE = "wrist";
 
 const pending = new Map<string, Promise<string>>();
 const BUILD_RE = /^[a-z0-9-]+(\.[a-z0-9-]+){0,9}$/;
@@ -42,8 +45,8 @@ function fs() {
   return fsPromise;
 }
 const rendersDir = () => env("RENDERS_DIR") ?? "./data/renders";
-const fileOf = (build: string) => `${rendersDir()}/${build}.png`;
-const servedUrl = (build: string) => `/api/render?build=${encodeURIComponent(build)}`;
+const fileOf = (build: string) => `${rendersDir()}/${build}.${RENDER_STYLE}.png`;
+const servedUrl = (build: string) => `/api/render?build=${encodeURIComponent(build)}&style=${RENDER_STYLE}`;
 
 async function savedExists(build: string) {
   const f = await fs();
