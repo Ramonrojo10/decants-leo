@@ -207,7 +207,7 @@ export function WatchBuilder() {
       <div className="builder-body">
         <div
           ref={stageRef}
-          className={`builder-stage ${assembled ? "is-assembled" : ""}`}
+          className={`builder-stage ${assembled ? "is-assembled" : ""} ${step?.id === "bracelet" || step?.id === "strap" ? "is-strap-step" : ""}`}
         >
           <div className="builder-scene">
             <div ref={watchRef} className="builder-watch" role="img" aria-label={`Reloj armado: ${summaryLines.join(", ")}`}>
