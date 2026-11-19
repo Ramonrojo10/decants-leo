@@ -4,23 +4,22 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  DEFAULT_BUILD,
-  DRAW_ORDER,
+  CLASSES,
+  DEFAULT_PARTS,
   FAMILY,
+  STEPS,
   decodeBuild,
+  defaultBuild,
   encodeBuild,
-  isAllowed,
-  layerSrc,
-  normalize,
+  layersOf,
   optionOf,
-  steps,
+  thumbOf,
   type Build,
+  type ClassId,
   type StepId,
 } from "../data/builder";
 import { whatsappLink } from "../lib/site";
 import { ArrowUpRight, Check, WhatsApp } from "./icons";
-
-const SUMMARY = steps.length;
 
 type RenderState =
   | { status: "idle" }
@@ -28,20 +27,7 @@ type RenderState =
   | { status: "done"; imageUrl: string; key: string }
   | { status: "error"; message: string };
 
-/** `fullStrap`: usa la capa con la correa completa (vista alejada). */
-function layersOf(build: Build, fullStrap = false) {
-  return DRAW_ORDER.flatMap((slot) =>
-    slot.startsWith("light-")
-      ? [{ slot, layer: slot, depth: DRAW_ORDER.indexOf(slot) }]
-      : optionOf(slot as StepId, build[slot as StepId]).layers.map((layer) => ({
-          slot,
-          layer: slot === "strap" && fullStrap ? `${layer}-full` : layer,
-          depth: DRAW_ORDER.indexOf(slot),
-        })),
-  );
-}
-
-/** Junta las capas reales en una sola imagen (lo que se manda al render). */
+/** Junta las capas reales en una sola imagen (recorte de 1000 x 1000 centrado en la esfera). */
 async function composeImage(build: Build) {
   const size = 1000;
   const canvas = document.createElement("canvas");
@@ -49,13 +35,12 @@ async function composeImage(build: Build) {
   const ctx = canvas.getContext("2d")!;
   ctx.fillStyle = "#0b0b0b";
   ctx.fillRect(0, 0, size, size);
-  for (const { slot, layer } of layersOf(build)) {
+  for (const { src } of layersOf(build)) {
     const img = new Image();
-    img.src = layerSrc(layer);
+    img.src = src;
     await img.decode();
-    // las correas tienen el doble de alto, centradas en el mismo eje
-    if (slot === "strap") ctx.drawImage(img, 0, -size / 2, size, size * 2);
-    else ctx.drawImage(img, 0, 0, size, size);
+    // el lienzo mide 1000 x 2000 y la esfera está en el centro
+    ctx.drawImage(img, 0, -size / 2, size, size * 2);
   }
   return canvas.toDataURL("image/jpeg", 0.9);
 }
@@ -63,7 +48,7 @@ async function composeImage(build: Build) {
 export function WatchBuilder() {
   const stageRef = useRef<HTMLDivElement>(null);
   const watchRef = useRef<HTMLDivElement>(null);
-  const [build, setBuild] = useState<Build>(DEFAULT_BUILD);
+  const [build, setBuild] = useState<Build>(() => defaultBuild("gmt"));
   const [active, setActive] = useState(0);
   const [assembled, setAssembled] = useState(false);
   const [lastChanged, setLastChanged] = useState<StepId | null>(null);
@@ -115,9 +100,21 @@ export function WatchBuilder() {
     };
   }, []);
 
+  const steps = STEPS[build.cls];
+  const SUMMARY = steps.length;
+  const className = CLASSES.find((c) => c.id === build.cls)!.name;
+
   const choose = (step: StepId, id: string) => {
-    setBuild((current) => normalize({ ...current, [step]: id }));
+    setBuild((current) => ({ ...current, parts: { ...current.parts, [step]: id } }));
     setLastChanged(step);
+  };
+
+  const chooseClass = (cls: ClassId) => {
+    if (cls === build.cls) return;
+    setBuild(defaultBuild(cls));
+    setActive(0);
+    setLastChanged(null);
+    setRender({ status: "idle" });
   };
 
   const shareUrl = () => {
@@ -127,10 +124,10 @@ export function WatchBuilder() {
     return url.toString();
   };
 
-  const summaryLines = steps.map((s) => `${s.label}: ${optionOf(s.id, build[s.id]).name}`);
+  const summaryLines = steps.map((s) => `${s.label}: ${optionOf(build.cls, s.id, build.parts[s.id]!).name}`);
   const sendLink = () =>
     whatsappLink(
-      `Hola Decants Leo. Quiero armar este Seiko Mod (${FAMILY.name}):\n${summaryLines.join(
+      `Hola Decants Leo. Quiero armar este Seiko Mod (${className}):\n${summaryLines.join(
         "\n",
       )}\n¿Me confirman disponibilidad y precio?\n${shareUrl()}`,
     );
@@ -153,10 +150,13 @@ export function WatchBuilder() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           build: key,
-          parts: steps.map((s) => {
-            const option = optionOf(s.id, build[s.id]);
-            return { step: s.label, name: option.name, detail: option.detail };
-          }),
+          parts: [
+            { step: "Clase", name: className, detail: "Piezas de Leo" },
+            ...steps.map((s) => {
+              const option = optionOf(build.cls, s.id, build.parts[s.id]!);
+              return { step: s.label, name: option.name, detail: option.detail };
+            }),
+          ],
           image,
         }),
       });
@@ -176,7 +176,7 @@ export function WatchBuilder() {
   };
 
   const step = steps[active];
-  const strapView = step?.id === "strap";
+  const layers = layersOf(build);
   const renderIsCurrent = render.status === "done" && render.key === encodeBuild(build);
 
   return (
@@ -187,37 +187,45 @@ export function WatchBuilder() {
           Elige cada pieza y mira cómo queda. Leo lo arma a mano y te confirma componentes y
           precio antes de empezar.
         </p>
-        <p className="builder-proto">Piezas reales de Namoki Mods · fotos del proveedor</p>
+        <p className="builder-proto">{FAMILY.note}</p>
+      </div>
+
+      <div className="builder-class" role="radiogroup" aria-label="Clase de reloj">
+        {CLASSES.map((c) => (
+          <button
+            key={c.id}
+            role="radio"
+            aria-checked={build.cls === c.id}
+            className={build.cls === c.id ? "is-active" : ""}
+            onClick={() => chooseClass(c.id)}
+          >
+            {c.label}
+          </button>
+        ))}
       </div>
 
       <div className="builder-body">
         <div
           ref={stageRef}
-          className={`builder-stage ${assembled ? "is-assembled" : ""} ${strapView ? "is-strap-view" : ""}`}
+          className={`builder-stage ${assembled ? "is-assembled" : ""}`}
         >
           <div className="builder-scene">
             <div ref={watchRef} className="builder-watch" role="img" aria-label={`Reloj armado: ${summaryLines.join(", ")}`}>
-              {layersOf(build, strapView).map(({ slot, layer, depth }) => (
+              {layers.map(({ slot, src }, depth) => (
                 <img
-                  key={`${slot}-${layer}`}
-                  src={layerSrc(layer)}
+                  key={`${build.cls}-${depth}-${src}`}
+                  src={src}
                   alt=""
                   draggable={false}
                   decoding="async"
-                  className={[
-                    "builder-layer",
-                    `builder-layer--${slot}`,
-                    layer.endsWith("-seconds") ? "is-seconds" : "",
-                    layer.endsWith("-full") ? "is-full" : "",
-                    lastChanged === slot ? "is-fresh" : "",
-                  ].join(" ")}
+                  className={`builder-layer builder-layer--${slot} ${lastChanged === slot ? "is-fresh" : ""}`}
                   style={{ "--depth": depth } as React.CSSProperties}
                 />
               ))}
             </div>
           </div>
           <p className="builder-family">
-            {FAMILY.name}
+            {className} · {FAMILY.name}
             <span>{FAMILY.note}</span>
           </p>
         </div>
@@ -255,23 +263,24 @@ export function WatchBuilder() {
               <h3>{step.question}</h3>
               <div className="option-grid" role="radiogroup" aria-label={step.label}>
                 {step.options.map((option) => {
-                  const allowed = isAllowed(option, build);
-                  const selected = build[step.id] === option.id;
+                  const selected = build.parts[step.id] === option.id;
                   return (
                     <button
                       key={option.id}
                       role="radio"
                       aria-checked={selected}
-                      disabled={!allowed}
                       className={`option ${selected ? "is-selected" : ""}`}
                       onClick={() => choose(step.id, option.id)}
                     >
                       <span className={`option-thumb option-thumb--${step.id}`}>
-                        <img src={layerSrc(option.thumb)} alt="" loading="lazy" decoding="async" />
+                        {step.id === "case" && (
+                          <img src={thumbOf(build.cls, "dial", DEFAULT_PARTS[build.cls].dial!)} alt="" loading="lazy" decoding="async" />
+                        )}
+                        <img src={thumbOf(build.cls, step.id, option.id)} alt="" loading="lazy" decoding="async" />
                       </span>
                       <span className="option-text">
                         <b>{option.name}</b>
-                        <small>{allowed ? option.detail : option.requiresNote ?? "No compatible con tu selección"}</small>
+                        <small>{option.detail}</small>
                       </span>
                       {selected && <Check size={16} className="option-check" />}
                     </button>
@@ -291,11 +300,17 @@ export function WatchBuilder() {
             <div className="builder-options builder-summary" key="summary">
               <h3>Tu reloj</h3>
               <dl className="spec-table">
+                <div>
+                  <dt>Clase</dt>
+                  <dd>
+                    <button onClick={() => setActive(0)}>{className}</button>
+                  </dd>
+                </div>
                 {steps.map((s) => (
                   <div key={s.id}>
                     <dt>{s.label}</dt>
                     <dd>
-                      <button onClick={() => setActive(steps.indexOf(s))}>{optionOf(s.id, build[s.id]).name}</button>
+                      <button onClick={() => setActive(steps.indexOf(s))}>{optionOf(build.cls, s.id, build.parts[s.id]!).name}</button>
                     </dd>
                   </div>
                 ))}
@@ -334,7 +349,7 @@ export function WatchBuilder() {
               <button
                 className="builder-reset"
                 onClick={() => {
-                  setBuild(DEFAULT_BUILD);
+                  setBuild(defaultBuild(build.cls));
                   setActive(0);
                   setLastChanged(null);
                   setRender({ status: "idle" });

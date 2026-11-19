@@ -1,14 +1,11 @@
-# Piezas del armador
+# Armador de Seiko Mods: piezas de Leo
 
-Las capas de `public/builder/parts` salen de fotos reales de Namoki Mods (permiso de uso otorgado).
+El armador usa solo piezas propias de Leo, en dos clases: GMT y Nautilus.
 
-1. Agrega la pieza a `parts-list.txt`: `<id> <mm> <ruta-cdn-shopify>` (prefijo case-, dial-, insert- o hands-).
-2. Descarga la foto en tamaño completo a una carpeta `raw/` (`https://cdn.shopify.com/s/files/1/0139/0434/7193/<ruta>`).
-3. Quita el fondo:
-   - esferas de color e insertos: `python local_cutout.py raw cut <ids>`
-   - manecillas planas: `python hands_cutout.py raw cut <ids>`
-   - cajas de acero y piezas blancas: removedor de fondo de Higgsfield (1 crédito).
-4. Alinea a escala real: `python batch_align.py parts-list.txt cut ../../public/builder/parts`
-5. Agrega la opción en `app/data/builder.ts`.
+1. Las fotos originales están en `fotos-leo/` (fuera de la web). Se separan en capas PNG transparentes con `leo_gmt_batch.py` / `leo_gmt_split.py` (GMT) y `leo_nautilus_split.py` (Nautilus). Todas las capas comparten un lienzo de 1000 x 2000 px (1000 px = 48 mm, centro de la esfera en 500,1000), así que se apilan sin desplazamientos.
+2. `export_leo_parts.py` exporta las piezas elegidas a `public/builder/leo/<clase>/<tipo>-<id>.webp` (WebP q85 con alfa). Incluye la sombra de contacto del bisel GMT recortada al metal de cada caja.
+3. `app/data/builder.ts` define las opciones (nombres en español) y el orden de capas:
+   - GMT: brazalete, caja, sombra de bisel, esfera, sombra de esfera, bisel.
+   - Nautilus: correa, esfera, sombra de esfera, caja.
 
-Solo sirven fotos vistas de frente (cajas desde arriba, manecillas planas). Requiere Pillow y NumPy.
+Para agregar una pieza: sumarla a las listas de `export_leo_parts.py`, correrlo (`python scripts/builder/export_leo_parts.py`) y añadir la opción en `builder.ts`. Dentro de una clase todo es combinable.
