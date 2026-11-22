@@ -21,7 +21,7 @@ export function Wordmark({ className = "" }: { className?: string }) {
   );
 }
 
-export function Header() {
+export function Header({ home = "" }: { home?: string }) {
   const { inquiry, openDrawer } = useStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const [musicOn, setMusicOn] = useState(false);
@@ -57,13 +57,13 @@ export function Header() {
   return (
     <header className={`site-header ${solid || menuOpen ? "is-solid" : ""}`}>
       <audio ref={audioRef} src="/audio/deep-techno-ambience.mp3" loop preload="none" />
-      <a href="#inicio" className="brand-link" aria-label="Decants Leo, inicio">
+      <a href={home ? "/" : "#inicio"} className="brand-link" aria-label="Decants Leo, inicio">
         <Wordmark />
       </a>
 
       <nav className={`nav ${menuOpen ? "is-open" : ""}`} aria-label="Principal">
         {links.map((link) => (
-          <a key={link.href} href={link.href} onClick={() => setMenuOpen(false)}>
+          <a key={link.href} href={home && link.href !== "#arma" ? `${home}${link.href}` : link.href} onClick={() => setMenuOpen(false)}>
             {link.label}
           </a>
         ))}

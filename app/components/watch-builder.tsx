@@ -45,10 +45,10 @@ async function composeImage(build: Build) {
   return canvas.toDataURL("image/jpeg", 0.9);
 }
 
-export function WatchBuilder() {
+export function WatchBuilder({ initialClass = "gmt" }: { initialClass?: ClassId }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const watchRef = useRef<HTMLDivElement>(null);
-  const [build, setBuild] = useState<Build>(() => defaultBuild("gmt"));
+  const [build, setBuild] = useState<Build>(() => defaultBuild(initialClass));
   const [active, setActive] = useState(0);
   const [assembled, setAssembled] = useState(false);
   const [lastChanged, setLastChanged] = useState<StepId | null>(null);

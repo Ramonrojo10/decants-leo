@@ -3,11 +3,12 @@
 import { ScrollVideo } from "./components/scroll-video";
 import { Catalog } from "./components/catalog";
 import { WatchBuilder } from "./components/watch-builder";
-import { Header, Wordmark } from "./components/header";
+import { Header } from "./components/header";
 import { ArrowUpRight, Instagram, WhatsApp } from "./components/icons";
 import { ShowcaseButton } from "./components/showcase-button";
+import { SiteFooter } from "./components/site-footer";
 import { StoreProvider } from "./components/store";
-import { GENERAL_MESSAGE, INSTAGRAM_URL, WHATSAPP_DISPLAY, whatsappLink } from "./lib/site";
+import { GENERAL_MESSAGE, INSTAGRAM_URL, whatsappLink } from "./lib/site";
 
 const modSteps = [
   {
@@ -34,6 +35,11 @@ export default function Home() {
         <Catalog />
 
         <WatchBuilder />
+
+        <p className="style-links">
+          Páginas por estilo: <a href="/gmt">Seiko Mod GMT</a> · <a href="/nautilus">Estilo Nautilus</a> ·{" "}
+          <a href="/santos">Estilo Santos</a>
+        </p>
 
         <section className="mods" id="mods">
           <div className="mods-figure">
@@ -106,20 +112,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="footer">
-        <Wordmark />
-        <nav aria-label="Pie de página">
-          <a href="#stock">Stock</a>
-          <a href="#mods">Seiko Mods</a>
-          <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer">Instagram</a>
-          <a href={whatsappLink(GENERAL_MESSAGE)} target="_blank" rel="noreferrer">WhatsApp</a>
-        </nav>
-        <p>
-          <a href={whatsappLink(GENERAL_MESSAGE)} target="_blank" rel="noreferrer">{WHATSAPP_DISPLAY}</a>
-          {" · "}Entrega en persona en Tijuana
-        </p>
-        <p>Tijuana · Baja California · © {new Date().getFullYear()} Decants Leo</p>
-      </footer>
+      <SiteFooter />
     </StoreProvider>
   );
 }

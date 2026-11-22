@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
-async function render() {
+async function render(path = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
 
   return worker.fetch(
-    new Request("http://localhost/", {
+    new Request(`http://localhost${path}`, {
       headers: { accept: "text/html" },
     }),
     {
@@ -77,4 +77,30 @@ test("keeps licensed audio, catalog assets, and disclosure copy in source", asyn
     access(new URL("../public/products/santos-dumont-seiko-mod.jpg", import.meta.url)),
     access(new URL("../public/brand/instagram-profile.jpg", import.meta.url)),
   ]);
+});
+
+const STYLE_PAGES = [
+  ["gmt", "Seiko Mod GMT en Tijuana"],
+  ["nautilus", "Seiko Mod estilo Nautilus en Tijuana"],
+  ["santos", "Seiko Mod estilo Santos en Tijuana"],
+];
+
+test("renders the indexable style landing pages", async () => {
+  for (const [slug, h1] of STYLE_PAGES) {
+    const response = await render(`/${slug}`);
+    assert.equal(response.status, 200, slug);
+    const html = await response.text();
+    assert.match(html, new RegExp(`<h1[^>]*>${h1}</h1>`), slug);
+    assert.match(html, new RegExp(`<link rel="canonical" href="https://decantsleo\\.online/${slug}"`), slug);
+    assert.match(html, /"@type":"FAQPage"/, slug);
+    assert.match(html, /"@type":"BreadcrumbList"/, slug);
+    assert.match(html, /id="arma"/, slug);
+  }
+});
+
+test("lists the style pages in the sitemap", async () => {
+  const response = await render("/sitemap.xml");
+  assert.equal(response.status, 200);
+  const xml = await response.text();
+  for (const [slug] of STYLE_PAGES) assert.match(xml, new RegExp(`<loc>https://decantsleo\\.online/${slug}</loc>`));
 });
