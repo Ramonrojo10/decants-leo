@@ -1,6 +1,6 @@
 /**
- * Catálogo del armador de Seiko Mods: solo piezas propias de Leo, en dos clases
- * (GMT y Nautilus). Dentro de cada clase todo es combinable.
+ * Catálogo del armador de Seiko Mods: solo piezas propias de Leo, en tres clases
+ * (GMT, Nautilus y Santos). Dentro de cada clase todo es combinable.
  *
  * Cada capa de public/builder/leo/<clase> es una pieza real con el fondo
  * quitado, en el mismo lienzo de 1000 x 2000 px (1000 px = 48 mm, centro de la
@@ -8,7 +8,7 @@
  * Se generan con scripts/builder/export_leo_parts.py.
  */
 
-export type ClassId = "gmt" | "nautilus";
+export type ClassId = "gmt" | "nautilus" | "santos";
 export type StepId = "case" | "dial" | "bezel" | "bracelet" | "strap";
 
 export type PartOption = {
@@ -34,12 +34,13 @@ export const FAMILY = {
 export const CLASSES: { id: ClassId; label: string; name: string }[] = [
   { id: "gmt", label: "GMT", name: "Clase GMT" },
   { id: "nautilus", label: "Nautilus", name: "Clase Nautilus" },
+  { id: "santos", label: "Santos", name: "Clase Santos" },
 ];
 
 const opt = (cls: ClassId, id: string, name: string): PartOption => ({
   id,
   name,
-  detail: `Pieza de Leo · compatible con toda la clase ${cls === "gmt" ? "GMT" : "Nautilus"}`,
+  detail: `Pieza de Leo · compatible con toda la clase ${CLASSES.find((c) => c.id === cls)!.label}`,
 });
 const list = (cls: ClassId, items: [string, string][]) => items.map(([id, name]) => opt(cls, id, name));
 
@@ -150,11 +151,58 @@ export const STEPS: Record<ClassId, Step[]> = {
       ]),
     },
   ],
+  santos: [
+    {
+      id: "case",
+      label: "Caja",
+      question: "¿Con qué caja empezamos?",
+      options: list("santos", [
+        ["santos-08", "Acero"],
+        ["santos-05", "Acero bisel negro"],
+        ["santos-12", "Bicolor oro amarillo"],
+        ["santos-16", "Negro PVD"],
+      ]),
+    },
+    {
+      id: "dial",
+      label: "Esfera",
+      question: "¿Qué esfera?",
+      options: list("santos", [
+        ["santos-08", "Azul"],
+        ["santos-02", "Negra"],
+        ["santos-01", "Café degradado"],
+        ["santos-11", "Verde"],
+        ["santos-10", "Roja con fecha"],
+        ["santos-15", "Blanca clásica"],
+        ["santos-09", "Blanca guilloché con fecha"],
+        ["santos-13", "Azul arábiga"],
+        ["santos-16", "Arena arábiga"],
+        ["santos-07", "Skeleton"],
+        ["santos-03", "Time Is Money blanca"],
+        ["santos-14", "Time Is Money negra"],
+        ["santos-04", "The World Is Yours"],
+        ["santos-05", "Fuck 9,5"],
+      ]),
+    },
+    {
+      id: "strap",
+      label: "Correa",
+      question: "¿Y la correa?",
+      options: list("santos", [
+        ["santos-08", "Extensible acero"],
+        ["santos-16", "Extensible negro PVD"],
+        ["santos-09", "Piel azul"],
+        ["santos-12", "Piel café"],
+        ["santos-15", "Piel negra"],
+      ]),
+    },
+  ],
 };
 
 export const DEFAULT_PARTS: Record<ClassId, Build["parts"]> = {
   gmt: { case: "gmt-02", dial: "gmt-02", bezel: "gmt-02", bracelet: "gmt-02" },
   nautilus: { case: "naut-03", dial: "naut-02", strap: "naut-03" },
+  santos: { case: "santos-08", dial: "santos-08", strap: "santos-08" },
 };
 
 export const defaultBuild = (cls: ClassId): Build => ({ cls, parts: { ...DEFAULT_PARTS[cls] } });
@@ -170,7 +218,7 @@ export function encodeBuild(build: Build) {
 export function decodeBuild(value: string | null): Build | null {
   if (!value) return null;
   const [cls, ...ids] = value.split(".");
-  if (cls !== "gmt" && cls !== "nautilus") return null;
+  if (cls !== "gmt" && cls !== "nautilus" && cls !== "santos") return null;
   const steps = STEPS[cls];
   if (ids.length !== steps.length) return null;
   const parts: Build["parts"] = {};
@@ -198,11 +246,12 @@ export function layersOf(build: Build): Layer[] {
       { slot: "bezel", src: src("gmt", `bezel-${p.bezel}`) },
     ];
   }
+  const cls = build.cls;
   return [
-    { slot: "strap", src: src("nautilus", `strap-${p.strap}`) },
-    { slot: "dial", src: src("nautilus", `dial-${p.dial}`) },
-    { slot: "shadow", src: src("nautilus", "shadowdial") },
-    { slot: "case", src: src("nautilus", `case-${p.case}`) },
+    { slot: "strap", src: src(cls, `strap-${p.strap}`) },
+    { slot: "dial", src: src(cls, `dial-${p.dial}`) },
+    { slot: "shadow", src: src(cls, "shadowdial") },
+    { slot: "case", src: src(cls, `case-${p.case}`) },
   ];
 }
 

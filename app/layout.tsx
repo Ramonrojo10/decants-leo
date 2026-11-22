@@ -24,7 +24,7 @@ const editorial = Bodoni_Moda({
 });
 
 const DESCRIPTION =
-  "Seiko Mods en Tijuana: arma tu reloj GMT o estilo Nautilus pieza por pieza, movimiento automático NH35. Relojes y accesorios, entrega en persona.";
+  "Seiko Mods en Tijuana: arma tu reloj GMT, estilo Nautilus o estilo Santos pieza por pieza. Movimiento NH35, entrega en persona.";
 
 export const viewport: Viewport = {
   themeColor: "#050505",
