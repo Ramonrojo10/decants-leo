@@ -84,19 +84,60 @@ export function ScrollVideo() {
       if (!frame) frame = requestAnimationFrame(update);
     };
 
-    // Load the first frame immediately, then the rest in order.
-    for (let i = 0; i < manifest.frames; i++) {
+    // Progressive loading: first (and last) frame now, the rest in small
+    // batches when the browser is idle or the user starts scrolling.
+    const load = (i: number) => {
+      if (images[i]) return;
       const image = new Image();
       image.decoding = "async";
+      image.onload = () => {
+        current = -1;
+        schedule();
+      };
       image.src = frameSrc(i);
-      if (i === 0 || i === manifest.frames - 1) image.onload = schedule;
-      images.push(image);
+      images[i] = image;
+    };
+    // Order: coarse stride first so scrubbing has nearby frames early, then fill gaps.
+    const order: number[] = [];
+    const seen = new Set<number>();
+    for (const stride of [16, 8, 4, 2, 1]) {
+      for (let i = 0; i < manifest.frames; i += stride) {
+        if (!seen.has(i)) {
+          seen.add(i);
+          order.push(i);
+        }
+      }
     }
+    if (!seen.has(manifest.frames - 1)) order.push(manifest.frames - 1);
+    load(0);
+
+    let cursor = 1;
+    let stopped = false;
+    let timer = 0;
+    const idle = (cb: () => void) => {
+      const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
+      if (w.requestIdleCallback) w.requestIdleCallback(cb);
+      else timer = window.setTimeout(cb, 120);
+    };
+    const pump = () => {
+      if (stopped) return;
+      for (let n = 0; n < 6 && cursor < order.length; n++) load(order[cursor++]);
+      if (cursor < order.length) idle(pump);
+    };
+    const kick = () => {
+      window.removeEventListener("scroll", kick);
+      pump();
+    };
+    window.addEventListener("scroll", kick, { passive: true, once: true });
+    idle(pump);
 
     schedule();
     window.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", schedule);
     return () => {
+      stopped = true;
+      clearTimeout(timer);
+      window.removeEventListener("scroll", kick);
       cancelAnimationFrame(frame);
       window.removeEventListener("scroll", schedule);
       window.removeEventListener("resize", schedule);
@@ -115,7 +156,7 @@ export function ScrollVideo() {
         <div className="scroll-video-shade" aria-hidden="true" />
 
         <div className="hero-copy hero-copy--intro">
-          <p className="place">Tijuana · Baja California</p>
+          <p className="place">Seiko Mods · Tijuana, Baja California</p>
           <h1>El tiempo,<br />a tu manera.</h1>
           <p className="lede">Seiko Mods, relojes seleccionados y accesorios con carácter.</p>
           {manifest ? (

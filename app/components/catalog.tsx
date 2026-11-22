@@ -51,6 +51,8 @@ export function Catalog() {
                 <img
                   src={cover.src}
                   alt={product.name}
+                  width={800}
+                  height={1000}
                   loading="lazy"
                   style={{ objectPosition: cover.position }}
                   className={cover.kind === "studio" ? "is-studio" : ""}

@@ -30,11 +30,19 @@ test("renders the Decants Leo storefront and production metadata", async () => {
 
   const html = await response.text();
   assert.match(html, /<html lang="es">/i);
-  assert.match(html, /<title>Decants Leo — Relojes y accesorios<\/title>/i);
+  assert.match(html, /<title>Decants Leo · Seiko Mods en Tijuana \| Arma tu reloj<\/title>/i);
   assert.match(html, /El tiempo,/);
   assert.match(html, /Stock seleccionado/);
   assert.match(html, /Seiko Mods/);
-  assert.match(html, /og\.png/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/decantsleo\.com\/?"/i);
+  assert.match(html, /property="og:image" content="https:\/\/decantsleo\.com\/og\.jpg"/i);
+  assert.match(html, /<script type="application\/ld\+json">/i);
+  assert.match(html, /"@type":\["Organization","Store"\]/);
+  assert.match(html, /"telephone":"\+52 665 142 6008"/);
+  assert.doesNotMatch(html, /name="keywords"/i);
+  const waLinks = [...html.matchAll(/https:\/\/wa\.me\/[^"?]*/g)].map((m) => m[0]);
+  assert.ok(waLinks.length > 0);
+  for (const link of waLinks) assert.equal(link, "https://wa.me/526651426008");
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/i);
 });
 
@@ -64,7 +72,7 @@ test("keeps licensed audio, catalog assets, and disclosure copy in source", asyn
   assert.match(license, /Mixkit Stock Music Free License/);
 
   await Promise.all([
-    access(new URL("../public/og.png", import.meta.url)),
+    access(new URL("../public/og.jpg", import.meta.url)),
     access(new URL("../public/products/santos-dumont-seiko-mod.jpg", import.meta.url)),
     access(new URL("../public/brand/instagram-profile.jpg", import.meta.url)),
   ]);

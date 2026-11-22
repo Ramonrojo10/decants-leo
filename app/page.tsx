@@ -7,7 +7,7 @@ import { Header, Wordmark } from "./components/header";
 import { ArrowUpRight, Instagram, WhatsApp } from "./components/icons";
 import { ShowcaseButton } from "./components/showcase-button";
 import { StoreProvider } from "./components/store";
-import { GENERAL_MESSAGE, INSTAGRAM_URL, whatsappLink } from "./lib/site";
+import { GENERAL_MESSAGE, INSTAGRAM_URL, WHATSAPP_DISPLAY, whatsappLink } from "./lib/site";
 
 const modSteps = [
   {
@@ -114,6 +114,10 @@ export default function Home() {
           <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer">Instagram</a>
           <a href={whatsappLink(GENERAL_MESSAGE)} target="_blank" rel="noreferrer">WhatsApp</a>
         </nav>
+        <p>
+          <a href={whatsappLink(GENERAL_MESSAGE)} target="_blank" rel="noreferrer">{WHATSAPP_DISPLAY}</a>
+          {" · "}Entrega en persona en Tijuana
+        </p>
         <p>Tijuana · Baja California · © {new Date().getFullYear()} Decants Leo</p>
       </footer>
     </StoreProvider>
