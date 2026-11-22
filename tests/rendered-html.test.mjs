@@ -34,8 +34,8 @@ test("renders the Decants Leo storefront and production metadata", async () => {
   assert.match(html, /El tiempo,/);
   assert.match(html, /Stock seleccionado/);
   assert.match(html, /Seiko Mods/);
-  assert.match(html, /<link rel="canonical" href="https:\/\/decantsleo\.com\/?"/i);
-  assert.match(html, /property="og:image" content="https:\/\/decantsleo\.com\/og\.jpg"/i);
+  assert.match(html, /<link rel="canonical" href="https:\/\/decantsleo\.online\/?"/i);
+  assert.match(html, /property="og:image" content="https:\/\/decantsleo\.online\/og\.jpg"/i);
   assert.match(html, /<script type="application\/ld\+json">/i);
   assert.match(html, /"@type":\["Organization","Store"\]/);
   assert.match(html, /"telephone":"\+52 665 142 6008"/);

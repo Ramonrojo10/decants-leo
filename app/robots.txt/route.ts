@@ -1,4 +1,4 @@
-const PRODUCTION_HOSTS = new Set(["decantsleo.com", "www.decantsleo.com"]);
+const PRODUCTION_HOSTS = new Set(["decantsleo.online", "www.decantsleo.online"]);
 
 /** Solo el dominio de producción es indexable; cualquier otro host (VPS de pruebas, localhost) no. */
 export async function GET(request: Request) {
@@ -8,7 +8,7 @@ export async function GET(request: Request) {
     .toLowerCase()
     .replace(/:\d+$/, "");
   const body = PRODUCTION_HOSTS.has(host)
-    ? "User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: https://decantsleo.com/sitemap.xml\n"
+    ? "User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: https://decantsleo.online/sitemap.xml\n"
     : "User-agent: *\nDisallow: /\n";
   return new Response(body, {
     headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=300" },

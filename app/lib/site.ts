@@ -4,7 +4,7 @@
  */
 export const WHATSAPP_NUMBER = "526651426008";
 export const WHATSAPP_DISPLAY = "+52 665 142 6008";
-export const SITE_URL = "https://decantsleo.com";
+export const SITE_URL = "https://decantsleo.online";
 
 export const INSTAGRAM_URL = "https://www.instagram.com/decants.leo/";
 

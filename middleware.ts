@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PRODUCTION_HOSTS = new Set(["decantsleo.com", "www.decantsleo.com"]);
+const PRODUCTION_HOSTS = new Set(["decantsleo.online", "www.decantsleo.online"]);
 
 /** Hosts distintos al de producción (VPS de pruebas, localhost) no deben indexarse. */
 export function middleware(request: NextRequest) {
