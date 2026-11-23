@@ -39,8 +39,9 @@ Q = 85
 CW, CH = 1000, 2000
 CX, CY = 500, 1000
 R = 300.0                 # canonical dial radius (inner edge of the bezel), 600 px = 28.8 mm
-OPEN_IN = 7.0             # case opening radius = R - OPEN_IN (keeps the lip of the bezel)
-DIAL_IN = 1.5             # dial cut radius = R - DIAL_IN (tucks under the lip)
+SAFE = 0.99               # dial is cut at SAFE x the outer end of its own minute track (never reaches the crystal ring)
+OPEN_IN = 8.0             # case opening radius = R - OPEN_IN (the bezel lip + crystal rim stay in the case)
+R_CUT = R - 4.0           # canonical radius where the dial's own cut (SAFE x printed edge) lands
 ARC_A = 520.0             # horizontal radius of the outer bezel arc model (flat top, measured on the photos)
 EROSION = {}              # source-edge erosion (px), default 2
 
@@ -48,6 +49,15 @@ CASE_IDS = ["02", "07", "01", "08", "05", "14", "15", "11", "10"]
 DIAL_IDS = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14"]
 STRAP_IDS = ["02", "11", "08"]
 ALL_IDS = ["%02d" % k for k in range(1, 16)]
+# straightened FLUX sources (fotos-leo/daytona/enderezadas/dt-NN.png, frontal) replace the originals
+FLUX = {"01", "02", "03", "06", "09", "11", "13"}
+FLUX_SEED = {'01': (696, 891, 350), '02': (726, 861, 300), '03': (684, 885, 330), '06': (696, 870, 330),
+             '09': (711, 879, 330), '11': (714, 891, 340), '13': (699, 900, 340)}
+# outer bezel top / bottom rows (centre column, canonical space) for the straightened sources
+BEZ_FLUX = {}
+# cases taken from the straightened sources. dt-02 stays on the original photo: the straightened one
+# is still strongly tilted (outer bezel 380..426 px from the dial centre) and its bezel does not rectify cleanly
+FLUX_CASE = {"01", "11"}
 RUBBER = {"01", "05", "08", "10"}   # photos that carry a rubber (Oysterflex) strap
 
 # hand guesses (cx, cy, r) of the inner bezel edge in source pixels (seed of the ellipse fit)
@@ -65,7 +75,9 @@ BEZ = {
 }
 
 
-def src_path(i):
+def src_path(i, flux=False):
+    if flux:
+        return os.path.join(SRCD, "enderezadas", f"dt-{i}.png")
     return glob.glob(os.path.join(SRCD, "originales", f"dt-{i}-*"))[0]
 
 
@@ -150,6 +162,152 @@ def affine_to_circle(ell):
     return np.hstack([L, t[:, None]]).astype(np.float64)
 
 
+def _polar(rgb, c, rm, r0, r1, na, nr):
+    t = np.linspace(0, 2 * np.pi, na, endpoint=False)[None, :]
+    r = np.linspace(r0, r1, nr)[:, None] * rm
+    mx = (c[0] + r * np.cos(t)).astype(np.float32)
+    my = (c[1] + r * np.sin(t)).astype(np.float32)
+    return cv2.remap(rgb, mx, my, cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE), t[0]
+
+
+def fit_dial_edge(rgb, ell, na=720, nr=240, r0=0.78, r1=0.985):
+    """Outer end of the dial's own minute track (the ring of radial ticks), seen as the outermost
+    radius with strong tangential luminance variation. The dial is eccentric w.r.t. the bezel in the
+    photos (parallax), so it is fitted as its own ellipse and re-centred twice."""
+    (x, y), (ma, mi), ang = ell
+    rm = (ma + mi) / 4
+    c = np.array([x, y], np.float64)
+    out = None
+    for _ in range(3):
+        P, t = _polar(rgb, c, rm, r0, r1, na, nr)
+        L = P.astype(np.float32).mean(2)
+        Dt = cv2.GaussianBlur(np.abs(np.roll(L, -1, 1) - L), (0, 0), sigmaX=4, sigmaY=1.2)
+        rs = np.linspace(r0, r1, nr)
+        edge = np.full(na, np.nan)
+        for k in range(na):
+            sk = Dt[:, k]
+            hi = sk > 0.4 * np.percentile(sk, 92)
+            idx = np.where(hi)[0]
+            if len(idx):
+                # contiguous run of strong tick/print variation that starts the dial track; a gap of
+                # ~12 rows ends it (dashes or gem texture beyond the track are ignored)
+                j = idx[0]
+                gap = 0
+                last = j
+                while j < nr:
+                    if hi[j]:
+                        last = j
+                        gap = 0
+                    else:
+                        gap += 1
+                        if gap > 12:
+                            break
+                    j += 1
+                edge[k] = rs[last]
+        med = cv2.medianBlur(np.nan_to_num(edge, nan=np.nanmedian(edge)).astype(np.float32).reshape(1, -1), 1)[0]
+        # circular running median
+        pad = 25
+        e2 = np.concatenate([edge[-pad:], edge, edge[:pad]])
+        med = np.array([np.nanmedian(e2[k:k + 2 * pad + 1]) for k in range(na)])
+        ok = ~np.isnan(edge) & (np.abs(edge - med) < 0.012)
+        pts = np.stack([c[0] + edge * rm * np.cos(t), c[1] + edge * rm * np.sin(t)], 1)[ok].astype(np.float32)
+        keep = np.ones(len(pts), bool)
+        for _i in range(4):
+            (ex, ey), (a_, b_), an = cv2.fitEllipse(pts[keep])
+            aa = np.deg2rad(an)
+            d = pts - [ex, ey]
+            u = d[:, 0] * np.cos(aa) + d[:, 1] * np.sin(aa)
+            v = -d[:, 0] * np.sin(aa) + d[:, 1] * np.cos(aa)
+            res = np.abs(np.hypot(u / (a_ / 2), v / (b_ / 2)) - 1) * (a_ + b_) / 4
+            keep = res < max(1.5, np.percentile(res, 75) * 1.5)
+        out = cv2.fitEllipse(pts[keep])
+        c = np.array(out[0], np.float64)
+        rm = (out[1][0] + out[1][1]) / 4 / 0.93      # next window centred on the found edge
+    return out
+
+
+def _ell_radius(e, th):
+    """Radius from (500,1000) of ellipse e along the angles th."""
+    (ex, ey), (ma, mi), ang = e
+    a = np.deg2rad(ang)
+    t = np.linspace(0, 2 * np.pi, 2000, endpoint=False)
+    u, v = ma / 2 * np.cos(t), mi / 2 * np.sin(t)
+    x = ex + u * np.cos(a) - v * np.sin(a) - CX
+    y = ey + u * np.sin(a) + v * np.cos(a) - CY
+    ph = np.arctan2(y, x) % (2 * np.pi)
+    o = np.argsort(ph)
+    return np.interp(th % (2 * np.pi), ph[o], np.hypot(x, y)[o], period=2 * np.pi)
+
+
+def fit_outer_bezel(w, rlo=325, rhi=480, na=720):
+    """Outer edge of the bezel in the circle-warped image w: candidate edges along rays from the dial
+    centre, then a RANSAC ellipse fit that keeps the model covering most angles (the outer edge is the
+    long continuous boundary; lugs/crown give only isolated candidates)."""
+    rng = np.random.default_rng(3)
+    t = np.linspace(0, 2 * np.pi, na, endpoint=False)[None, :]
+    r = np.arange(rlo, rhi, 0.5)[:, None]
+    P = cv2.remap(w, (CX + r * np.cos(t)).astype(np.float32), (CY + r * np.sin(t)).astype(np.float32), cv2.INTER_CUBIC)
+    lab = cv2.cvtColor(cv2.GaussianBlur(P, (0, 0), 1.0), cv2.COLOR_RGB2LAB).astype(np.float32)
+    g = cv2.GaussianBlur(np.linalg.norm(np.diff(lab, axis=0), axis=2), (0, 0), sigmaX=2, sigmaY=1)
+    C = []
+    for k in range(na):
+        sk = g[:, k]
+        thr = 0.6 * np.percentile(sk, 97)
+        for j in range(2, len(sk) - 2):
+            if sk[j] > sk[j - 1] and sk[j] >= sk[j + 1] and sk[j] > thr:
+                C.append((t[0][k], rlo + 0.5 * j))
+    C = np.array(C)
+    th, rr = C[:, 0], C[:, 1]
+    pts = np.stack([CX + rr * np.cos(th), CY + rr * np.sin(th)], 1).astype(np.float32)
+    best = None
+    for _ in range(4000):
+        idx = rng.choice(len(C), 6, replace=False)
+        try:
+            e = cv2.fitEllipse(pts[idx])
+        except cv2.error:
+            continue
+        if not (250 < e[1][0] / 2 < 520 and 250 < e[1][1] / 2 < 520):
+            continue
+        inl = np.abs(_ell_radius(e, th) - rr) < 2.5
+        sc = len(set((th[inl] * 180 / np.pi).astype(int)))
+        if best is None or sc > best[0]:
+            best = (sc, inl)
+    return cv2.fitEllipse(pts[best[1]])
+
+
+RB_MIN, RB_MAX = 352.0, 385.0     # allowed outer bezel radius after straightening
+DECAY = 60.0                      # the radial correction fades out over this many px beyond the bezel
+
+
+def rectify_case(a):
+    """Even out the bezel: photos shot at an angle show the bezel (a raised ring) thicker on one side, and an
+    affine map cannot fix that. The outer bezel edge is fitted as its own ellipse and the annulus between the
+    inner circle (R) and that edge is stretched radially so the outer edge also becomes a circle (Rb), centred
+    on the dial. Done as a single resampling of the source. Returns a source-like dict in canvas space."""
+    w = cv2.warpAffine(a["rgb"], a["M"], (CW, CH), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+    e = fit_outer_bezel(w)
+    X, Y = np.meshgrid(np.arange(CW, dtype=np.float64), np.arange(CH, dtype=np.float64))
+    dx, dy = X - CX, Y - CY
+    rho = np.hypot(dx, dy)
+    th = np.arctan2(dy, dx)
+    ro = _ell_radius(e, th.ravel()).reshape(th.shape)
+    Rb = float(np.clip(_ell_radius(e, np.linspace(0, 2 * np.pi, 720, endpoint=False)).mean(), RB_MIN, RB_MAX))
+    D = ro - Rb
+    rsrc = np.where(rho <= R, rho,
+                    np.where(rho <= Rb, R + (rho - R) * (ro - R) / (Rb - R),
+                             rho + D * np.maximum(0, 1 - (rho - Rb) / DECAY)))
+    wx = CX + rsrc * np.cos(th)
+    wy = CY + rsrc * np.sin(th)
+    Mi = a["Minv"]
+    sx = (Mi[0, 0] * wx + Mi[0, 1] * wy + Mi[0, 2]).astype(np.float32)
+    sy = (Mi[1, 0] * wx + Mi[1, 1] * wy + Mi[1, 2]).astype(np.float32)
+    rgb2 = cv2.remap(a["rgb"], sx, sy, cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+    fg2 = (cv2.remap(a["fg"].astype(np.float32), sx, sy, cv2.INTER_LINEAR, borderValue=0) > 0.5).astype(np.uint8)
+    I = np.array([[1, 0, 0], [0, 1, 0]], np.float64)
+    return dict(a, rgb=rgb2, fg=fg2, M=I, Minv=I, rectified=True, Rb=Rb, outer=e,
+                btop=int(round(CY - Rb)), bbot=int(round(CY + Rb)))
+
+
 # ----------------------------------------------------------------------------- measures
 def find_cuts(m, win):
     """Seam rows = where the case outline flares out from the strap/lug block."""
@@ -194,13 +352,46 @@ def strip_fit(m, y0, y1):
     return np.polyfit(ys[ok], ls[ok], 1), np.polyfit(ys[ok], rs[ok], 1)
 
 
-def analyse(i):
-    rgb = np.array(Image.open(src_path(i)).convert("RGB"))
-    ell = fit_inner(rgb, GUESS[i])
-    M = affine_to_circle(ell)
+_CACHE = {}
+
+
+def circle_affine(ell, rad):
+    """src -> canonical: ellipse becomes the circle of radius rad centred on (500,1000)."""
+    (ex, ey), (ma, mi), ang = ell
+    a = np.deg2rad(ang)
+    c, s_ = np.cos(a), np.sin(a)
+    Rm = np.array([[c, s_], [-s_, c]])
+    L = Rm.T @ np.diag([rad / (ma / 2), rad / (mi / 2)]) @ Rm
+    t = np.array([CX, CY]) - L @ np.array([ex, ey])
+    return np.hstack([L, t[:, None]]).astype(np.float64)
+
+
+def ellipse_pts(ell, n=360):
+    (ex, ey), (ma, mi), ang = ell
+    a = np.deg2rad(ang)
+    t = np.linspace(0, 2 * np.pi, n, endpoint=False)
+    u, v = ma / 2 * np.cos(t), mi / 2 * np.sin(t)
+    return np.stack([ex + u * np.cos(a) - v * np.sin(a), ey + u * np.sin(a) + v * np.cos(a)], 1)
+
+
+def analyse(i, flux=False, rect=False):
+    key = (i, flux, rect)
+    if key in _CACHE:
+        return _CACHE[key]
+    rgb = np.array(Image.open(src_path(i, flux)).convert("RGB"))
+    if flux:
+        ell = fit_inner(rgb, FLUX_SEED[i], span=0.22)
+    else:
+        ell = fit_inner(rgb, GUESS[i])
+    M = circle_affine(ell, R)
     fg = fg_mask(rgb)
-    a = dict(id=i, rgb=rgb, fg=fg, M=M, Minv=cv2.invertAffineTransform(M))
-    if i in BEZ:
+    a = dict(id=i, flux=flux, rgb=rgb, fg=fg, M=M, Minv=cv2.invertAffineTransform(M), ell=ell)
+    bez = (BEZ_FLUX if flux else BEZ).get(i)
+    if rect:
+        a = rectify_case(a)
+        fg, M = a["fg"], a["M"]
+        bez = (a["btop"], a["bbot"])
+    if bez is not None:
         wm = (cv2.warpAffine(fg * 255, M, (CW, CH), flags=cv2.INTER_LINEAR) > 127).astype(np.uint8)
         ct, cb = find_cuts(wm, (CX - R, CY - R, CX + R, CY + R))
         lt, rt = strip_fit(wm, ct - 220, ct - 30)
@@ -210,7 +401,8 @@ def analyse(i):
         a.update(wm=wm, ct=ct, cb=cb, lt=lt, rt=rt, lb=lb, rb=rb, ls=(wt_ + wb_) / 2,
                  ctc=(np.polyval(rt, ct) + np.polyval(lt, ct)) / 2,
                  cbc=(np.polyval(rb, cb) + np.polyval(lb, cb)) / 2,
-                 btop=BEZ[i][0], bbot=BEZ[i][1])
+                 btop=bez[0], bbot=bez[1])
+    _CACHE[key] = a
     return a
 
 
@@ -293,10 +485,16 @@ def disc(r, ss=4):
 
 
 # ----------------------------------------------------------------------------- layers
-def dial_layer(a):
+def dial_layer(a, r_cut):
+    """Dial cut at SAFE x its own printed edge, centred on the dial (hands axis), scaled so that
+    cut lands on the canonical radius r_cut."""
+    dell = fit_dial_edge(a["rgb"], a["ell"])
+    a["dell"] = dell
+    Md = circle_affine(dell, r_cut / SAFE)
+    b = dict(a, Minv=cv2.invertAffineTransform(Md))
     wx, wy = identity_maps()
-    col = sharpen(sample(a, wx, wy, "rgb").astype(np.float32))
-    return to_rgba(col, disc(R - DIAL_IN))
+    col = sharpen(sample(b, wx, wy, "rgb").astype(np.float32))
+    return to_rgba(col, disc(r_cut))
 
 
 def strip_alpha(a):
@@ -450,33 +648,36 @@ MIXES = [
 
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "all"
-    A = {i: analyse(i) for i in ALL_IDS}
-    parts = [i for i in ALL_IDS if i in BEZ]
-    canon = dict(lug=float(np.median([A[i]["ls"] for i in parts])),
-                 CT=float(np.median([A[i]["ct"] for i in parts])),
-                 CB=float(np.median([A[i]["cb"] for i in parts])))
+    AC = {i: analyse(i, i in FLUX_CASE, True) for i in CASE_IDS}     # case sources (bezel straightened)
+    AS = {i: analyse(i, False) for i in STRAP_IDS}              # strap sources (original photos)
+    AD = {i: analyse(i, i in FLUX) for i in DIAL_IDS}           # dial sources
+    parts = list(AC.values()) + list(AS.values())
+    canon = dict(lug=float(np.median([a["ls"] for a in parts])),
+                 CT=float(np.median([a["ct"] for a in parts])),
+                 CB=float(np.median([a["cb"] for a in parts])))
     print("canon", canon, "R", R)
-    for i in parts:
-        a = A[i]
-        print(i, "ct", a["ct"], "cb", a["cb"], "lug", round(a["ls"]), "btop/bbot", a["btop"], a["bbot"])
-    deep = (max(v[0] for v in BEZ.values()) + 12, min(v[1] for v in BEZ.values()) - 12)
+    for k, A_ in (("case", AC), ("strap", AS)):
+        for i, a in A_.items():
+            print(k, i, "flux" if a["flux"] else "orig", "ct", a["ct"], "cb", a["cb"], "lug", round(a["ls"]),
+                  "btop/bbot", a["btop"], a["bbot"])
+    deep = (max(a["btop"] for a in parts) + 12, min(a["bbot"] for a in parts) - 12)
+    r_cut = R_CUT
     os.makedirs(OUT, exist_ok=True)
     shadow = shadow_layer()
-    L = {}
-    for i in ALL_IDS:
-        L[i] = {}
-        if i in DIAL_IDS:
-            L[i]["dial"] = dial_layer(A[i])
-    cases0 = {i: case_layer(A[i], canon) for i in parts}
+    L = {"case": {}, "dial": {}, "strap": {}}
+    for i, a in AD.items():
+        L["dial"][i] = dial_layer(a, r_cut)
+    cases0 = {i: case_layer(a, canon) for i, a in AC.items()}
     ext = case_ext(cases0)
-    for i in parts:
-        L[i]["case"] = case_layer(A[i], canon, ext)
-        L[i]["strap"] = strap_layer(A[i], canon, deep, ext)
+    for i, a in AC.items():
+        L["case"][i] = case_layer(a, canon, ext)
+    for i, a in AS.items():
+        L["strap"][i] = strap_layer(a, canon, deep, ext)
     if mode in ("export", "all"):
         os.makedirs(WEB, exist_ok=True)
-        for i in CASE_IDS: L[i]["case"].save(os.path.join(WEB, f"case-dt-{i}.webp"), "WEBP", quality=Q, method=6)
-        for i in DIAL_IDS: L[i]["dial"].save(os.path.join(WEB, f"dial-dt-{i}.webp"), "WEBP", quality=Q, method=6)
-        for i in STRAP_IDS: L[i]["strap"].save(os.path.join(WEB, f"strap-dt-{i}.webp"), "WEBP", quality=Q, method=6)
+        for i in CASE_IDS: L["case"][i].save(os.path.join(WEB, f"case-dt-{i}.webp"), "WEBP", quality=Q, method=6)
+        for i in DIAL_IDS: L["dial"][i].save(os.path.join(WEB, f"dial-dt-{i}.webp"), "WEBP", quality=Q, method=6)
+        for i in STRAP_IDS: L["strap"][i].save(os.path.join(WEB, f"strap-dt-{i}.webp"), "WEBP", quality=Q, method=6)
         shadow.save(os.path.join(WEB, "shadowdial.webp"), "WEBP", quality=Q, method=6)
     if mode in ("sheets", "all"):
         sheets(L, shadow)
@@ -486,16 +687,16 @@ def main():
 def sheets(L, shadow):
     tiles = []
     for c, d, s, name in MIXES:
-        im = stack([L[s]["strap"], L[d]["dial"], shadow, L[c]["case"]]).convert("RGB")
+        im = stack([L["strap"][s], L["dial"][d], shadow, L["case"][c]]).convert("RGB")
         tiles.append(im.crop((0, 250, 1000, 1750)).resize((400, 600), Image.LANCZOS))
     sh = Image.new("RGB", (400 * 4, 600 * 2), "white")
     for k, t in enumerate(tiles):
         sh.paste(t, ((k % 4) * 400, (k // 4) * 600))
     sh.save(os.path.join(OUT, "mezclas.jpg"), quality=90)
     cells = []
-    for i in CASE_IDS: cells.append(("case dt-" + i, stack([L[i]["case"]])))
-    for i in DIAL_IDS: cells.append(("dial dt-" + i, stack([L[i]["dial"], shadow])))
-    for i in STRAP_IDS: cells.append(("strap dt-" + i, stack([L[i]["strap"]])))
+    for i in CASE_IDS: cells.append(("case dt-" + i, stack([L["case"][i]])))
+    for i in DIAL_IDS: cells.append(("dial dt-" + i, stack([L["dial"][i], shadow])))
+    for i in STRAP_IDS: cells.append(("strap dt-" + i, stack([L["strap"][i]])))
     cols = 8
     rows = (len(cells) + cols - 1) // cols
     cw, ch = 250, 420
