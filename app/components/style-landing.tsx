@@ -43,6 +43,17 @@ export const STYLE_PAGES: Record<
     waMessage: "Hola Decants Leo. Quiero armar un Seiko Mod estilo Santos. ¿Me ayudan a elegir las piezas?",
     intro: "En esta clase eliges caja, esfera y correa o extensible.",
   },
+  daytona: {
+    slug: "daytona",
+    h1: "Seiko Mod estilo Daytona en Tijuana",
+    short: "Estilo Daytona",
+    crumb: "Estilo Daytona",
+    title: "Seiko Mod estilo Daytona en Tijuana",
+    description:
+      "Arma tu Seiko Mod estilo Daytona en Tijuana: caja con bisel, esfera y extensible. Movimiento NH35, armado a mano por Leo y entrega en persona.",
+    waMessage: "Hola Decants Leo. Quiero armar un Seiko Mod estilo Daytona. ¿Me ayudan a elegir las piezas?",
+    intro: "En esta clase eliges caja con bisel, esfera y extensible.",
+  },
 };
 
 const GROUP_TITLES: Record<string, string> = {
@@ -85,7 +96,7 @@ export function StyleLanding({ cls }: { cls: ClassId }) {
   const combos = steps.reduce((total, s) => total * s.options.length, 1);
   const comboText = combos.toLocaleString("es-MX");
   const others = (Object.keys(STYLE_PAGES) as ClassId[]).filter((id) => id !== cls);
-  const styleName = cls === "gmt" ? "GMT" : `estilo ${cls === "nautilus" ? "Nautilus" : "Santos"}`;
+  const styleName = cls === "gmt" ? "GMT" : `estilo ${page.crumb.replace("Estilo ", "")}`;
 
   const faqs = [
     {

@@ -38,7 +38,7 @@ export default function Home() {
 
         <p className="style-links">
           Páginas por estilo: <a href="/gmt">Seiko Mod GMT</a> · <a href="/nautilus">Estilo Nautilus</a> ·{" "}
-          <a href="/santos">Estilo Santos</a>
+          <a href="/santos">Estilo Santos</a> · <a href="/daytona">Estilo Daytona</a>
         </p>
 
         <section className="mods" id="mods">

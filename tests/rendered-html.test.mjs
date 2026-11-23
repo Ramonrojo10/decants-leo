@@ -83,6 +83,7 @@ const STYLE_PAGES = [
   ["gmt", "Seiko Mod GMT en Tijuana"],
   ["nautilus", "Seiko Mod estilo Nautilus en Tijuana"],
   ["santos", "Seiko Mod estilo Santos en Tijuana"],
+  ["daytona", "Seiko Mod estilo Daytona en Tijuana"],
 ];
 
 test("renders the indexable style landing pages", async () => {

@@ -1,6 +1,6 @@
 /**
- * Catálogo del armador de Seiko Mods: solo piezas propias de Leo, en tres clases
- * (GMT, Nautilus y Santos). Dentro de cada clase todo es combinable.
+ * Catálogo del armador de Seiko Mods: solo piezas propias de Leo, en cuatro clases
+ * (GMT, Nautilus, Santos y Daytona). Dentro de cada clase todo es combinable.
  *
  * Cada capa de public/builder/leo/<clase> es una pieza real con el fondo
  * quitado, en el mismo lienzo de 1000 x 2000 px (1000 px = 48 mm, centro de la
@@ -8,7 +8,7 @@
  * Se generan con scripts/builder/export_leo_parts.py.
  */
 
-export type ClassId = "gmt" | "nautilus" | "santos";
+export type ClassId = "gmt" | "nautilus" | "santos" | "daytona";
 export type StepId = "case" | "dial" | "bezel" | "bracelet" | "strap";
 
 export type PartOption = {
@@ -35,6 +35,7 @@ export const CLASSES: { id: ClassId; label: string; name: string }[] = [
   { id: "gmt", label: "GMT", name: "Clase GMT" },
   { id: "nautilus", label: "Nautilus", name: "Clase Nautilus" },
   { id: "santos", label: "Santos", name: "Clase Santos" },
+  { id: "daytona", label: "Daytona", name: "Clase Daytona" },
 ];
 
 const opt = (cls: ClassId, id: string, name: string): PartOption => ({
@@ -197,12 +198,62 @@ export const STEPS: Record<ClassId, Step[]> = {
       ]),
     },
   ],
+  daytona: [
+    {
+      id: "case",
+      label: "Caja y bisel",
+      question: "¿Con qué caja y bisel empezamos?",
+      options: list("daytona", [
+        ["dt-02", "Acero · bisel acero"],
+        ["dt-07", "Acero · bisel cerámica negra"],
+        ["dt-01", "Oro amarillo · bisel oro"],
+        ["dt-08", "Oro amarillo · bisel cerámica negra"],
+        ["dt-05", "Oro rosa · bisel cerámica negra"],
+        ["dt-14", "Acero · bisel rainbow"],
+        ["dt-15", "Acero · bisel piedras blancas"],
+        ["dt-11", "Oro rosa · bisel rainbow"],
+        ["dt-10", "Oro rosa · bisel piedras blancas"],
+      ]),
+    },
+    {
+      id: "dial",
+      label: "Esfera",
+      question: "¿Qué esfera?",
+      options: list("daytona", [
+        ["dt-02", "Negra panda"],
+        ["dt-01", "Negra con oro"],
+        ["dt-03", "Plata panda"],
+        ["dt-08", "Champagne"],
+        ["dt-07", "Negra arábiga"],
+        ["dt-06", "Azul arábiga"],
+        ["dt-04", "Azul cielo arábiga"],
+        ["dt-05", "Negra arábiga oro rosa"],
+        ["dt-09", "Negra rainbow"],
+        ["dt-12", "Blanca con subesferas azules"],
+        ["dt-14", "Azul con subesferas blancas"],
+        ["dt-13", "Nácar azul cielo"],
+        ["dt-11", "Pavé de diamantes rainbow"],
+        ["dt-10", "Giraffe con diamantes"],
+      ]),
+    },
+    {
+      id: "strap",
+      label: "Extensible",
+      question: "¿Y el extensible?",
+      options: list("daytona", [
+        ["dt-02", "Oyster acero"],
+        ["dt-11", "Oyster oro rosa"],
+        ["dt-08", "Oysterflex goma negra"],
+      ]),
+    },
+  ],
 };
 
 export const DEFAULT_PARTS: Record<ClassId, Build["parts"]> = {
   gmt: { case: "gmt-02", dial: "gmt-02", bezel: "gmt-02", bracelet: "gmt-02" },
   nautilus: { case: "naut-03", dial: "naut-02", strap: "naut-03" },
   santos: { case: "santos-08", dial: "santos-08", strap: "santos-08" },
+  daytona: { case: "dt-02", dial: "dt-02", strap: "dt-02" },
 };
 
 export const defaultBuild = (cls: ClassId): Build => ({ cls, parts: { ...DEFAULT_PARTS[cls] } });
@@ -218,7 +269,7 @@ export function encodeBuild(build: Build) {
 export function decodeBuild(value: string | null): Build | null {
   if (!value) return null;
   const [cls, ...ids] = value.split(".");
-  if (cls !== "gmt" && cls !== "nautilus" && cls !== "santos") return null;
+  if (cls !== "gmt" && cls !== "nautilus" && cls !== "santos" && cls !== "daytona") return null;
   const steps = STEPS[cls];
   if (ids.length !== steps.length) return null;
   const parts: Build["parts"] = {};

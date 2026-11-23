@@ -11,6 +11,7 @@ export function SiteFooter({ home = "" }: { home?: string }) {
         <a href="/gmt">Seiko Mod GMT</a>
         <a href="/nautilus">Estilo Nautilus</a>
         <a href="/santos">Estilo Santos</a>
+        <a href="/daytona">Estilo Daytona</a>
         <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer">Instagram</a>
         <a href={whatsappLink(GENERAL_MESSAGE)} target="_blank" rel="noreferrer">WhatsApp</a>
       </nav>

@@ -1511,7 +1511,9 @@ p {
   }
   .builder-class button {
     flex: 1;
-    padding: 0 8px;
+    padding: 0 4px;
+    font-size: 13px;
+    letter-spacing: 0.02em;
   }
   .grid {
     grid-template-columns: 1fr;
@@ -1547,7 +1549,7 @@ p {
   .builder-watch { transition: none; }
 }
 
-/* ── Páginas por estilo (/gmt, /nautilus, /santos) ─────────────── */
+/* ── Páginas por estilo (/gmt, /nautilus, /santos, /daytona) ─────────────── */
 
 .style-hero {
   display: grid;
