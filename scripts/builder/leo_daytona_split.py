@@ -591,7 +591,13 @@ def strap_layer(a, canon, deep, ext):
         at = CY - (CY - a["btop"] + 8) * k
         ab = CY + (a["bbot"] - 8 - CY) * k
     wx, wy = canvas_maps(a, canon, (at, ab), xclamp=lw - 3)
-    col = sharpen(np.clip(sample(a, wx, wy, "rgb").astype(np.float32), 0, 255))
+    rgb = sample(a, wx, wy, "rgb").astype(np.float32)
+    # defringe: the photo edge pixels (and the white background that shows in the wings beside the
+    # horns) are white-contaminated. Keep only colours from well inside the foreground (source mask
+    # eroded 4 px) and grow them outwards, so the semi-transparent edges carry strap colour, not white.
+    a["fgsoft"] = cv2.GaussianBlur(cv2.erode(a["fg"], np.ones((3, 3), np.uint8), iterations=4).astype(np.float32), (0, 0), 0.8)
+    valid = (sample(a, wx, wy, "mask") > 0.97).astype(np.uint8)
+    col = sharpen(np.clip(extend_colors(rgb, cv2.erode(valid, np.ones((3, 3), np.uint8)), 90), 0, 255))
     sa = strip_alpha(a)
     wxs, wys = canvas_maps(a, canon)
     sa_c = cv2.remap(sa, wxs.astype(np.float32), wys.astype(np.float32), cv2.INTER_LINEAR, borderValue=0)

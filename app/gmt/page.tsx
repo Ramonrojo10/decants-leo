@@ -1,6 +1,8 @@
-import { StyleLanding, metadataFor } from "../components/style-landing";
+import { StyleLanding, generateStyleMetadata } from "../components/style-landing";
 
-export const metadata = metadataFor("gmt");
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ arma?: string | string[] }> }) {
+  return generateStyleMetadata("gmt", searchParams);
+}
 
 export default function Page() {
   return <StyleLanding cls="gmt" />;

@@ -5,6 +5,7 @@ import { WatchBuilder } from "./watch-builder";
 import { ArrowUpRight, WhatsApp } from "./icons";
 import { STEPS, type ClassId } from "../data/builder";
 import { SITE_URL, whatsappLink } from "../lib/site";
+import { withSharedBuild } from "../lib/share-meta";
 
 export const STYLE_PAGES: Record<
   ClassId,
@@ -88,6 +89,10 @@ export function metadataFor(cls: ClassId) {
       images: [{ url: "/og.jpg", alt: image.alt }],
     },
   };
+}
+
+export async function generateStyleMetadata(cls: ClassId, searchParams: Promise<{ arma?: string | string[] }>) {
+  return withSharedBuild(metadataFor(cls), (await searchParams).arma);
 }
 
 export function StyleLanding({ cls }: { cls: ClassId }) {

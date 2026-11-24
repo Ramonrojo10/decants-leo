@@ -8,7 +8,7 @@ export async function GET(request: Request) {
     .toLowerCase()
     .replace(/:\d+$/, "");
   const body = PRODUCTION_HOSTS.has(host)
-    ? "User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: https://decantsleo.online/sitemap.xml\n"
+    ? "User-agent: *\nAllow: /\nAllow: /api/og\nDisallow: /api/\n\nSitemap: https://decantsleo.online/sitemap.xml\n"
     : "User-agent: *\nDisallow: /\n";
   return new Response(body, {
     headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=300" },

@@ -8,6 +8,9 @@ import { ArrowUpRight, Instagram, WhatsApp } from "./components/icons";
 import { ShowcaseButton } from "./components/showcase-button";
 import { SiteFooter } from "./components/site-footer";
 import { StoreProvider } from "./components/store";
+import type { Metadata } from "next";
+import { metadata as baseMetadata } from "./layout";
+import { sharedBuildMeta, withSharedBuild } from "./lib/share-meta";
 import { GENERAL_MESSAGE, INSTAGRAM_URL, whatsappLink } from "./lib/site";
 
 const modSteps = [
@@ -24,6 +27,16 @@ const modSteps = [
     text: "Montado sobre movimiento Seiko automático y entregado en mano en Tijuana.",
   },
 ];
+
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ arma?: string | string[] }> }): Promise<Metadata> {
+  const arma = (await searchParams).arma;
+  if (!sharedBuildMeta(arma)) return {};
+  const { openGraph, twitter } = withSharedBuild(
+    { openGraph: baseMetadata.openGraph!, twitter: baseMetadata.twitter! },
+    arma,
+  );
+  return { openGraph, twitter };
+}
 
 export default function Home() {
   return (

@@ -105,3 +105,32 @@ test("lists the style pages in the sitemap", async () => {
   const xml = await response.text();
   for (const [slug] of STYLE_PAGES) assert.match(xml, new RegExp(`<loc>https://decantsleo\\.online/${slug}</loc>`));
 });
+
+test("shared builder links expose the build image for link previews", async () => {
+  const build = "daytona.dt-11.dt-12.dt-08";
+  const shared = await (await render(`/daytona?arma=${build}`)).text();
+  assert.match(shared, new RegExp(`property="og:image" content="https://decantsleo\\.online/api/og\\?arma=${build}"`));
+  assert.match(shared, new RegExp(`name="twitter:image" content="https://decantsleo\\.online/api/og\\?arma=${build}"`));
+  assert.match(shared, /<link rel="canonical" href="https:\/\/decantsleo\.online\/daytona"/);
+
+  const plain = await (await render("/daytona")).text();
+  assert.match(plain, /property="og:image" content="https:\/\/decantsleo\.online\/og\.jpg"/);
+
+  const home = await (await render(`/?arma=gmt.gmt-02.gmt-02.gmt-02.gmt-02`)).text();
+  assert.match(home, /property="og:image" content="https:\/\/decantsleo\.online\/api\/og\?arma=gmt\.gmt-02/);
+
+  const invalid = await (await render("/daytona?arma=daytona.nope")).text();
+  assert.match(invalid, /property="og:image" content="https:\/\/decantsleo\.online\/og\.jpg"/);
+});
+
+test("robots allows the share-image endpoint on the production host", async () => {
+  const { default: worker } = await import(new URL("../dist/server/index.js", import.meta.url).href);
+  const response = await worker.fetch(
+    new Request("https://decantsleo.online/robots.txt", { headers: { host: "decantsleo.online" } }),
+    { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
+    { waitUntil() {}, passThroughOnException() {} },
+  );
+  const body = await response.text();
+  assert.ok(body.indexOf("Allow: /api/og") !== -1);
+  assert.ok(body.indexOf("Allow: /api/og") < body.indexOf("Disallow: /api/"));
+});
