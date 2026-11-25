@@ -56,7 +56,7 @@ export default function Home() {
 
         <section className="mods" id="mods">
           <div className="mods-figure">
-            <img src="/products/gmt-bruce-wayne-seiko-mod.jpg" alt="GMT Bruce Wayne en mano, foto real" loading="lazy" />
+            <img src="/products/coleccion-seiko-mods-decants-leo.jpg" alt="Colección de Seiko Mods de Decants Leo en estuche sobre mesa de billar, foto real" loading="lazy" />
           </div>
           <div className="mods-text">
             <h2>Seiko Mods:<br /><em>una base confiable, una estética tuya.</em></h2>
